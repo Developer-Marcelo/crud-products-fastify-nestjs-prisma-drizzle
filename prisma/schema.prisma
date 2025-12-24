@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/infrastructure/prisma/generated/prisma"
+   moduleFormat    = "cjs"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Product {
+  id        String      @id
+  name      String
+  price     Float
+  quantity  Int
+  createdAt DateTime @default(now())
+}
