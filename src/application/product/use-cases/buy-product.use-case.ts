@@ -11,6 +11,7 @@ export class BuyProductUseCase {
       throw new Error("Product not found");
     }
     product.buy(buyProductDto.quantity);
+
     await this.productRepository.update(product.id, {
       quantity: product.quantity,
     });

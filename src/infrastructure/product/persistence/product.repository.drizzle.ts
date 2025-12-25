@@ -1,7 +1,8 @@
+import { ListProductDto } from "@/application/product/dtos/list-product.dto";
 import { ProductEntity } from "@/domain/product/entities/product.entity";
 import { ProductRepositoryInterface } from "@/domain/product/repositories/product.repository.interface";
 import { DrizzleService } from "@/infrastructure/drizzle/prisma.service";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { productSchema } from "drizzle/schema.drizzle";
 
 export class ProductRepositoryDrizzle implements ProductRepositoryInterface {
@@ -23,7 +24,7 @@ export class ProductRepositoryDrizzle implements ProductRepositoryInterface {
     const aProduct: Partial<typeof productSchema.$inferInsert> = {
       name: product.name?.value,
       price: product.price?.value,
-      quantity: product.quantity,
+      quantity: product.quantity?.value,
     };
     const updatedProduct = await this.drizzle.getDrizzle
       .update(productSchema)
@@ -54,18 +55,35 @@ export class ProductRepositoryDrizzle implements ProductRepositoryInterface {
     }
   }
 
-  async list(): Promise<ProductEntity[]> {
-    const products = await this.drizzle.getDrizzle.select().from(productSchema);
-    return products.map((product: typeof productSchema.$inferSelect) => {
-      const productEntity = ProductEntity.build(
-        product.id,
-        product.name,
-        product.price,
-        product.quantity,
-        product.createdAt
-      );
-      return productEntity;
-    });
+  async list(listProductDto: ListProductDto): Promise<{
+    products: ProductEntity[];
+    total: number;
+  }> {
+    const aProducts = await this.drizzle.getDrizzle
+      .select()
+      .from(productSchema)
+      .limit(listProductDto.limit)
+      .offset((listProductDto.page - 1) * listProductDto.limit);
+
+    const totalProducts = await this.drizzle.getDrizzle
+      .select({
+        count: count().as("count"),
+      })
+      .from(productSchema);
+    const products = aProducts.map(
+      (product: typeof productSchema.$inferSelect) => {
+        const productEntity = ProductEntity.build(
+          product.id,
+          product.name,
+          product.price,
+          product.quantity,
+          product.createdAt
+        );
+        return productEntity;
+      }
+    );
+    const total = totalProducts[0].count;
+    return { products, total };
   }
 
   async findById(id: string): Promise<ProductEntity> {

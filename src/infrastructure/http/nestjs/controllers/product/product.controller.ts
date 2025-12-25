@@ -19,8 +19,10 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from "@nestjs/common";
 import { ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ListProductNestDto } from "./dtos/list-product-nest.dto";
 
 @Controller("products")
 export class ProductController {
@@ -78,17 +80,25 @@ export class ProductController {
   })
   @Put(":id")
   async update(@Param("id") id: string, @Body() product: UpdateProductDto) {
-    const updatedProduct = await this.updateProductUseCase.execute(id, product);
-    if (!updatedProduct) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+    try {
+      const updatedProduct = await this.updateProductUseCase.execute(
+        id,
+        product
+      );
+      if (!updatedProduct) {
+        throw new NotFoundException(`Product with id ${id} not found`);
+      }
+      const output = {
+        id: updatedProduct.id,
+        name: updatedProduct.name.value,
+        price: updatedProduct.price.value,
+        quantity: updatedProduct.quantity,
+        createdAt: updatedProduct.createdAt,
+      };
+      return output;
+    } catch (error) {
+      throw new NotFoundException((error as Error).message);
     }
-    const output = {
-      id: updatedProduct.id,
-      name: updatedProduct.name.value,
-      price: updatedProduct.price.value,
-      createdAt: updatedProduct.createdAt,
-    };
-    return output;
   }
 
   @ApiOperation({ summary: "Delete a product" })
@@ -151,15 +161,24 @@ export class ProductController {
     },
   })
   @Get()
-  async list() {
-    const products = await this.listProductUseCase.execute();
-    const output = products.map((product) => ({
-      id: product.id,
-      name: product.name.value,
-      price: product.price.value,
-      createdAt: product.createdAt,
-    }));
-    return output;
+  async list(@Query() listProductDto: ListProductNestDto) {
+    try {
+      const aProducts = await this.listProductUseCase.execute(listProductDto);
+      const products = aProducts.products.map((product) => ({
+        id: product.id,
+        name: product.name.value,
+        price: product.price.value,
+        quantity: product.quantity.value,
+        createdAt: product.createdAt,
+      }));
+      const output = {
+        products,
+        total: aProducts.total,
+      };
+      return output;
+    } catch (error) {
+      throw new NotFoundException((error as Error).message);
+    }
   }
 
   @ApiOperation({ summary: "Sell a product" })
@@ -181,7 +200,10 @@ export class ProductController {
       const soldProduct = await this.sellProductUseCase.execute(sellProductDto);
       const output = {
         id: soldProduct.id,
-        balance: soldProduct.quantity,
+        name: soldProduct.name.value,
+        price: soldProduct.price.value,
+        quantity: soldProduct.quantity,
+        createdAt: soldProduct.createdAt,
       };
       return output;
     } catch (error) {
@@ -208,7 +230,10 @@ export class ProductController {
       const boughtProduct = await this.buyProductUseCase.execute(buyProductDto);
       const output = {
         id: boughtProduct.id,
-        balance: boughtProduct.quantity,
+        name: boughtProduct.name.value,
+        price: boughtProduct.price.value,
+        quantity: boughtProduct.quantity,
+        createdAt: boughtProduct.createdAt,
       };
       return output;
     } catch (error) {

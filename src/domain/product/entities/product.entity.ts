@@ -1,18 +1,19 @@
 import { NameVO } from "@/domain/product/value-objects/name.vo";
 import { PriceVO } from "@/domain/product/value-objects/price.vo";
+import { QuantityVO } from "@/domain/product/value-objects/quantity.vo";
 
 export class ProductEntity {
   private _id: string;
   private _name: NameVO;
   private _price: PriceVO;
-  private _quantity: number;
+  private _quantity: QuantityVO;
   private _createdAt: Date;
 
   constructor(
     id: string,
     name: NameVO,
     price: PriceVO,
-    quantity: number,
+    quantity: QuantityVO,
     createdAt: Date
   ) {
     this._id = id;
@@ -25,7 +26,8 @@ export class ProductEntity {
   public static create(id: string, name: string, price: number): ProductEntity {
     const nameVO = new NameVO(name);
     const priceVO = new PriceVO(price);
-    return new ProductEntity(id, nameVO, priceVO, 0, new Date());
+    const quantityVO = new QuantityVO(0);
+    return new ProductEntity(id, nameVO, priceVO, quantityVO, new Date());
   }
 
   public static build(
@@ -37,7 +39,8 @@ export class ProductEntity {
   ): ProductEntity {
     const nameVO = new NameVO(name);
     const priceVO = new PriceVO(price);
-    return new ProductEntity(id, nameVO, priceVO, quantity, createdAt);
+    const quantityVO = new QuantityVO(quantity);
+    return new ProductEntity(id, nameVO, priceVO, quantityVO, createdAt);
   }
 
   get id(): string {
@@ -52,7 +55,7 @@ export class ProductEntity {
     return this._price;
   }
 
-  get quantity(): number {
+  get quantity(): QuantityVO {
     return this._quantity;
   }
 
@@ -64,19 +67,19 @@ export class ProductEntity {
     if (quantity <= 0) {
       throw new Error("Quantity must be greater than 0");
     }
-    this._quantity += quantity;
+    this._quantity = this._quantity.add(quantity);
   }
 
   sell(quantity: number): void {
     if (quantity <= 0) {
       throw new Error("Quantity must be greater than 0");
     }
-    if (quantity > this._quantity) {
+    if (quantity > this._quantity.value) {
       throw new Error(
         "Quantity must be less than or equal to the available quantity"
       );
     }
-    this._quantity -= quantity;
+    this._quantity = this._quantity.subtract(quantity);
   }
 
   updateName(name: NameVO): void {

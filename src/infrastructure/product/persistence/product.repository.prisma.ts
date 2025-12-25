@@ -3,6 +3,7 @@ import { PrismaService } from "@/infrastructure/prisma/prisma.service";
 import { ProductEntity } from "@/domain/product/entities/product.entity";
 import { Prisma } from "@/infrastructure/prisma/generated/prisma/client";
 import type { Product as PrismaProduct } from "@/infrastructure/prisma/generated/prisma/client";
+import { ListProductDto } from "@/application/product/dtos/list-product.dto";
 
 export class ProductRepositoryPrisma implements ProductRepositoryInterface {
   constructor(private readonly prisma: PrismaService) {}
@@ -29,7 +30,7 @@ export class ProductRepositoryPrisma implements ProductRepositoryInterface {
         data: {
           name: product.name?.value,
           price: product.price?.value,
-          quantity: product.quantity,
+          quantity: product.quantity?.value,
         },
       });
       const productEntity = ProductEntity.build(
@@ -68,9 +69,15 @@ export class ProductRepositoryPrisma implements ProductRepositoryInterface {
     }
   }
 
-  async list(): Promise<ProductEntity[]> {
-    const products = await this.prisma.product.findMany();
-    return products.map((product: PrismaProduct) => {
+  async list(
+    listProductDto: ListProductDto
+  ): Promise<{ products: ProductEntity[]; total: number }> {
+    const aProducts = await this.prisma.product.findMany({
+      skip: (listProductDto.page - 1) * listProductDto.limit,
+      take: listProductDto.limit,
+    });
+    const total = await this.prisma.product.count();
+    const products = aProducts.map((product: PrismaProduct) => {
       const productEntity = ProductEntity.build(
         product.id,
         product.name,
@@ -80,6 +87,10 @@ export class ProductRepositoryPrisma implements ProductRepositoryInterface {
       );
       return productEntity;
     });
+    return {
+      products: products,
+      total: total,
+    };
   }
 
   async findById(id: string): Promise<ProductEntity> {
