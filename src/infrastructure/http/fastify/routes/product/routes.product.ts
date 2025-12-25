@@ -4,6 +4,8 @@ import { FastifyInstance } from "fastify";
 import { ContainerProduct } from "@/infrastructure/http/fastify/routes/product/container";
 import { SellProductDto } from "@/application/product/dtos/sell-product.dto";
 import { BuyProductDto } from "@/application/product/dtos/buy-product.dto";
+import { ListProductDto } from "@/application/product/dtos/list-product.dto";
+import { UpdateProductDto } from "@/application/product/dtos/update-product.dto";
 
 export class routesProduct {
   constructor(
@@ -29,22 +31,29 @@ export class routesProduct {
             201: {
               description: "Product created successfully",
             },
+            400: {
+              description: "Invalid request body",
+            },
           },
         },
       },
       async (request, reply) => {
-        const aProduct: CreateProductDto = request.body as CreateProductDto;
-        const createProductUseCase =
-          this.containerProduct.createProductUseCase();
-        const createdProduct = await createProductUseCase.execute(aProduct);
+        try {
+          const aProduct: CreateProductDto = request.body as CreateProductDto;
+          const createProductUseCase =
+            this.containerProduct.createProductUseCase();
+          const createdProduct = await createProductUseCase.execute(aProduct);
 
-        const output = {
-          id: createdProduct.id,
-          name: createdProduct.name.value,
-          price: createdProduct.price.value,
-          createdAt: createdProduct.createdAt,
-        };
-        reply.send(output);
+          const output = {
+            id: createdProduct.id,
+            name: createdProduct.name.value,
+            price: createdProduct.price.value,
+            createdAt: createdProduct.createdAt,
+          };
+          reply.send(output);
+        } catch (error) {
+          reply.status(400).send({ message: (error as Error).message });
+        }
       }
     );
   };
@@ -67,6 +76,7 @@ export class routesProduct {
             properties: {
               name: { type: "string" },
               price: { type: "number", minimum: 1 },
+              quantity: { type: "number", minimum: 1 },
             },
           },
           response: {
@@ -82,7 +92,7 @@ export class routesProduct {
       async (request, reply) => {
         try {
           const { id } = request.params as { id: string };
-          const aProduct: CreateProductDto = request.body as CreateProductDto;
+          const aProduct: UpdateProductDto = request.body as UpdateProductDto;
           const updateProductUseCase =
             this.containerProduct.updateProductUseCase();
           const updatedProduct = await updateProductUseCase.execute(
@@ -93,6 +103,7 @@ export class routesProduct {
             id: updatedProduct.id,
             name: updatedProduct.name.value,
             price: updatedProduct.price.value,
+            quantity: updatedProduct.quantity.value,
             createdAt: updatedProduct.createdAt,
           };
           reply.send(output);
@@ -140,7 +151,7 @@ export class routesProduct {
     );
   };
 
-  findById = async () => {
+  private findById = async () => {
     this.app.get(
       "/products/:id",
       {
@@ -203,14 +214,19 @@ export class routesProduct {
         try {
           const findAllProductUseCase =
             this.containerProduct.listProductUseCase();
-          const products = await findAllProductUseCase.execute();
-          const output = products.map((product) => ({
+          const listProductDto = request.query as ListProductDto;
+          const page = Number(listProductDto.page);
+          const limit = Number(listProductDto.limit);
+
+          const products = await findAllProductUseCase.execute({ page, limit });
+          const output = products.products.map((product) => ({
             id: product.id,
             name: product.name.value,
             price: product.price.value,
+            quantity: product.quantity.value,
             createdAt: product.createdAt,
           }));
-          reply.send(output);
+          reply.send({ products: output, total: products.total });
         } catch (error) {
           reply.status(404).send({ message: (error as Error).message });
         }
@@ -220,15 +236,16 @@ export class routesProduct {
 
   private sell = async () => {
     this.app.post(
-      "/products/:id/sell",
+      "/products/sell",
       {
         schema: {
           tags: ["Products"],
-          params: {
-            required: ["id"],
+          body: {
+            required: ["id", "quantity"],
             type: "object",
             properties: {
               id: { type: "string" },
+              quantity: { type: "number" },
             },
           },
           response: {
@@ -250,6 +267,7 @@ export class routesProduct {
             id: product.id,
             name: product.name.value,
             price: product.price.value,
+            quantity: product.quantity.value,
             createdAt: product.createdAt,
           };
           reply.send(output);
@@ -262,15 +280,16 @@ export class routesProduct {
 
   private buy = async () => {
     this.app.post(
-      "/products/:id/buy",
+      "/products/buy",
       {
         schema: {
           tags: ["Products"],
-          params: {
-            required: ["id"],
+          body: {
+            required: ["id", "quantity"],
             type: "object",
             properties: {
               id: { type: "string" },
+              quantity: { type: "number" },
             },
           },
           response: {
@@ -292,6 +311,7 @@ export class routesProduct {
             id: product.id,
             name: product.name.value,
             price: product.price.value,
+            quantity: product.quantity.value,
             createdAt: product.createdAt,
           };
           reply.send(output);
@@ -308,5 +328,7 @@ export class routesProduct {
     await this.app.register(this.delete);
     await this.app.register(this.findById);
     await this.app.register(this.list);
+    await this.app.register(this.sell);
+    await this.app.register(this.buy);
   }
 }
